@@ -1,8 +1,3 @@
-/*
- * @author	: ECI
- * @date	: 2015-4-7
- */
-
 package com.hit.http.server;
 
 import com.hit.http.interproc.BaseServer;
@@ -13,6 +8,13 @@ import com.hit.http.misc.Const;
 
 import io.netty.buffer.ByteBuf;
 
+/**
+ * Service
+ * @attribute
+ * ClientManager _clientManager
+ * @author THINK
+ *
+ */
 public class Service implements IServer {
 	
 	private ClientManager _clientManager = null;
@@ -44,7 +46,7 @@ public class Service implements IServer {
 		int ret = Const.FAIL;
 		
 		BaseServer svr = new BaseServer();
-		svr.SetPort(Conf.SERVICE_PORT);
+		svr.SetPort(1000);
 		svr.SetNewClientCallBack(this);
 		svr.Run(true);		
 		

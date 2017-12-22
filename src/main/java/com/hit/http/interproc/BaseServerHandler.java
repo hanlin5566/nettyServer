@@ -1,22 +1,22 @@
-/*
- * @author	: ECI
- * @date	: 2015-4-7
- */
+package com.hit.http.interproc;
 
-package com.wiitrans.base.interproc;
+import com.hit.http.misc.Const;
 
-import com.wiitrans.base.log.Log4j;
-import com.wiitrans.base.misc.Const;
-
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.LastHttpContent;
 
 @Sharable
+/**
+ * 封装 netty InboundHandler，（client上报的信息）
+ * 
+ * @author THINK
+ *
+ */
 public class BaseServerHandler extends ChannelInboundHandlerAdapter {
 	
 	private Boolean _isHttp = false;
@@ -69,7 +69,7 @@ public class BaseServerHandler extends ChannelInboundHandlerAdapter {
 				
 			}
 		}else {
-			Log4j.error("BaseServerHandler client is null.");
+			System.out.println("BaseServerHandler client is null.");
 		}
 	}
 

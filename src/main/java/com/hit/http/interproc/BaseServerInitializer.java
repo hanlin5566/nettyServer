@@ -3,9 +3,9 @@
  * @date	: 2015-4-7
  */
 
-package com.wiitrans.base.interproc;
+package com.hit.http.interproc;
 
-import com.wiitrans.base.misc.Const;
+import com.hit.http.misc.Const;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
@@ -15,7 +15,10 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.codec.http.HttpServerCodec;
 
-
+/**
+ * netty channelhandler 做了一些decode操作
+ *
+ */
 public class BaseServerInitializer extends ChannelInitializer<SocketChannel> {
 	
 	private ChannelHandler _handler = null;

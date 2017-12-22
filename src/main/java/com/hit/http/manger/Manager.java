@@ -8,6 +8,26 @@ package com.hit.http.manger;
 import com.hit.http.misc.Const;
 import com.hit.http.server.Service;
 
+/**
+ * 消息中心主函数，
+ * 1.初始化队列 ManageQuque @see ClientQueue @see BundleQueue
+ * ClientQueue,相当于缓存外部的请求（Request)
+ * 2.ManageBundles() @see {@link BundleManager}
+ * 3.ManageClients() @see ClientManager(_bundleQueue, _clientQueue)
+ * 4.new Service(_clientManager); {@link Service}
+ * 	 相当于启动了一个nettyServer等待输入，接收到输入后，向clientManager的Client setContent并缓存在本地，之后将Clientpush到bundleQueue中。
+ *   
+ *   
+ * ClientQueue:相当于缓存外部的请求（Request)，监听队列中的Response。
+ * ClientManager:push给Bundle，pop,并且监听Bundle回传的Response。
+ * BundleQueue:相当于Server的请求（Request)，监听队列中的Response。
+ * BundleManager:动态loadBundle并为其建立非http请求的NettyServer（isHttp=false）
+ * Service:启动了一个BaseServer（NettyServer）,以http方式连接（isHttp=true）
+ * 相当于所有的请求发送至manager的Netty，之后由manger封装为RequestMeat发送至BundleQueue，发送给Bundle。交由BunudleManager相应的NettyServer处理。
+ * 详解{@link BundleManager}
+ * @author THINK
+ *
+ */
 public class Manager {
 
 	private Service _service = null;

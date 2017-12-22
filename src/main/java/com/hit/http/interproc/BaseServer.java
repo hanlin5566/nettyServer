@@ -1,9 +1,7 @@
-/*
- * @author	: ECI
- * @date	: 2015-4-7
- */
 
-package com.wiitrans.base.interproc;
+package com.hit.http.interproc;
+
+import com.hit.http.misc.Const;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -12,10 +10,11 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-
-import com.wiitrans.base.log.Log4j;
-import com.wiitrans.base.misc.Const;
-
+/**
+ * NettyServer，Bundle是不以http方式连接，Server是已http方式连接。
+ * @author THINK
+ *
+ */
 public class BaseServer {
 
 	private int _port = -1;
@@ -48,8 +47,7 @@ public class BaseServer {
 			BaseServerHandler handler = new BaseServerHandler(isHttp);
 			handler.SetNewClientCallBack(_newClient);
 
-			ChannelHandler childHandler = new BaseServerInitializer(handler,
-					isHttp);
+			ChannelHandler childHandler = new BaseServerInitializer(handler,isHttp);
 
 			ServerBootstrap bootstrap = new ServerBootstrap();
 			bootstrap.option(ChannelOption.SO_BACKLOG, 1024);
@@ -71,8 +69,7 @@ public class BaseServer {
 			ret = Const.SUCCESS;
 
 		} catch (Exception e) {
-
-			Log4j.error(e);
+			e.printStackTrace();
 		} finally {
 
 			bossGroup.shutdownGracefully();

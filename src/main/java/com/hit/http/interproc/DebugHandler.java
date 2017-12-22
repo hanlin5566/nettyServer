@@ -3,7 +3,7 @@
  * @date	: 2015-4-7
  */
 
-package com.wiitrans.base.interproc;
+package com.hit.http.interproc;
 
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;

@@ -1,30 +1,43 @@
-/*
- * @author	: ECI
- * @date	: 2015-4-7
- */
-
 package com.hit.http.manger;
 
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.Set;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.json.JSONObject;
-
+import com.alibaba.fastjson.JSONObject;
+import com.hit.http.bundle.Bundle;
+import com.hit.http.bundle.BundleParam;
+import com.hit.http.bundle.IBundle;
+import com.hit.http.bundle.IResponse;
 import com.hit.http.manger.BundleQueue.RequestMeta;
-import com.wiitrans.base.bundle.BundleParam;
-import com.wiitrans.base.bundle.IBundle;
-import com.wiitrans.base.bundle.IResponse;
-import com.wiitrans.base.log.Log4j;
-import com.wiitrans.base.misc.BundleClassLoader;
-import com.wiitrans.base.misc.Const;
-import com.wiitrans.base.xml.AppConfig;
-import com.wiitrans.base.xml.WiitransConfig;
-import com.wiitrans.conf.Conf;
+import com.hit.http.misc.Conf;
+import com.hit.http.misc.Const;
+
+/**
+ * @attribute like {@link ClientManager} attribute description
+ * 		private ClientQueue _clientQueue = null;
+		private BundleQueue _bundleQueue = null;
+		private ExecutorService _threadPool = null;
+		// Bundle session.
+		private ConcurrentHashMap<String, IBundle> _bundleMap = null;
+ * @method
+ * 	Init()
+ * 	 1.初始化线程池与map并调用自身的run方法，pop队列，接收Request。
+ * 	 2.;{@link LoadBundles()} 加载bundle，storm的节点
+ *  LoadBundles()
+ *   1.通过配置决定是由jar包方式读取，还是class方式读取Bundle，具体客户端的入口，向客户端push。
+ *   2.调用RunBundle(bundle);
+ *  RunBundle(IBundle bundle)
+ *   1.调用bundle.start(); bundle本身为线程，调用run方法，启动了一个BaseServer()
+ *	 2.线程启动，调用自身的run方法，启动了一个BaseServer（NettyServer）,不已http方式连接（isHttp=false）
+ * @author THINK
+ * 
+ *
+ */
 
 public class BundleManager extends Thread implements IResponse {
 
@@ -76,24 +89,29 @@ public class BundleManager extends Thread implements IResponse {
 		return ret;
 	}
 
+	/**
+	 * 通过配置文件加载bundle，调用Start
+	 * @param bundle
+	 * @return
+	 */
 	private int RunBundle(IBundle bundle) {
 		int ret = Const.FAIL;
 		if (bundle != null) {
-			if (Const.SUCCESS == bundle.Start()) {
 				String bundleId = bundle.GetBundleId();
+				if (Const.SUCCESS == bundle.Start()) {
 				if (!_bundleMap.containsKey(bundleId)) {
 					bundle.SetResponse(this);
 					_bundleMap.put(bundleId, bundle);
 
-					Log4j.log("Bundle[" + bundleId + "] is loaded.");
+					System.out.println("Bundle[" + bundleId + "] is loaded.");
 
 					ret = Const.SUCCESS;
 				} else {
 					// TODO : Bundle id is exist.
-					Log4j.log("Bundle[" + bundleId + "] is exist.");
+					System.out.println("Bundle[" + bundleId + "] is exist.");
 				}
 			} else {
-				Log4j.error("Start bundle error.");
+				System.out.println("Start bundle error.");
 			}
 		}
 
@@ -103,13 +121,12 @@ public class BundleManager extends Thread implements IResponse {
 	private int LoadClass(String filePath, String fileName) {
 		int ret = Const.FAIL;
 
-		IBundle bundle = new BundleClassLoader<IBundle>().Load(filePath,
-				fileName);
+		IBundle bundle = new Bundle();
 		ret = RunBundle(bundle);
 		if (ret != Const.SUCCESS) {
 			String msg = "Load bundle class[" + filePath + "][" + fileName
 					+ "] error.";
-			Log4j.error(msg);
+			System.out.println(msg);
 		}
 
 		return ret;
@@ -129,11 +146,11 @@ public class BundleManager extends Thread implements IResponse {
 			if (ret != Const.SUCCESS) {
 				String msg = "Load bundle jar[" + filePath + "][" + fileName
 						+ "] error.";
-				Log4j.error(msg);
+				System.out.println(msg);
 			}
 
 		} catch (Exception e) {
-			Log4j.error(e);
+			System.out.println(e);
 		}
 
 		return ret;
@@ -142,13 +159,9 @@ public class BundleManager extends Thread implements IResponse {
 	private int LoadBundles() {
 		int ret = Const.FAIL;
 
-		// AppConfig app = new AppConfig();
-		// app.ParseBundle();
-		//
-		// Set<String> bundlenames = app._bundles.keySet();
-
-		for (BundleParam param : WiitransConfig.getInstance(1)
-				.GetBundelParams()) {
+		 List<BundleParam> bundlenames = new ArrayList<>();
+		
+		for (BundleParam param : bundlenames) {
 			switch (param.BUNDLE_FILE_TYPE) {
 			case "class": {
 				ret = LoadClass(param.BUNDLE_CLASS_FILEPATH,
@@ -173,7 +186,7 @@ public class BundleManager extends Thread implements IResponse {
 
 		return ret;
 	}
-
+	
 	public int Response(String clientId, byte[] msg) {
 		return _clientQueue.Push(clientId, msg);
 	}
@@ -189,14 +202,14 @@ public class BundleManager extends Thread implements IResponse {
 					_bundleMap.get(bundleId).Request(bundleInfo);
 
 				} catch (Exception e) {
-					Log4j.error("Bundle [" + bundleId + "] is exception.");
-					Log4j.error(e);
+					System.out.println("Bundle [" + bundleId + "] is exception.");
+					System.out.println(e);
 				}
 			} else {
-				Log4j.error("Bundle [" + bundleId + "] is not register.");
+				System.out.println("Bundle [" + bundleId + "] is not register.");
 			}
 		} else {
-			Log4j.error("BundleManager receive invalid msg.");
+			System.out.println("BundleManager receive invalid msg.");
 		}
 	}
 

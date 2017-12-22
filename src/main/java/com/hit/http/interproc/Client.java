@@ -1,42 +1,72 @@
-/*
- * @author	: ECI
- * @date	: 2015-4-7
- */
+package com.hit.http.interproc;
 
-package com.wiitrans.base.interproc;
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
-import java.util.Iterator;
+import java.nio.charset.Charset;
 
-import org.json.JSONObject;
-
-import com.wiitrans.base.bundle.BundleConf;
-import com.wiitrans.base.log.Log4j;
-import com.wiitrans.base.misc.Const;
-import com.wiitrans.base.misc.Util;
+import com.alibaba.fastjson.JSONObject;
+import com.hit.http.misc.Const;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
-import static io.netty.handler.codec.http.HttpHeaders.Names.*;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
-import static io.netty.handler.codec.http.HttpVersion.*;
+import io.netty.handler.codec.http.HttpResponseStatus;
 
+/**
+ * client封装了netty的ChannelHandlerContext，包含解析等操作
+ * @attribute
+ *  ChannelHandlerContext ctx --channelHandler与channelPipeline通信时的context。
+ *  JSONObject bundleInfoJSON -- 传递的json信息
+ *  HttpMethod method--请求协议的方法
+ *  boolean isCompleted--是否完成
+ *  String id--
+ *  String url--
+ *  ByteBuf contentBuf
+ * @method
+ * 	IsCompleted() 是否完成，返回boolean标识
+ * 
+ *  int Response(byte[] content) 
+ *  向此ctx.writeAndFlush(response);中写入应答并刷新。FullHttpResponse response = new DefaultFullHttpResponse(HTTP11, OK, buf);
+ *  
+ *  int Request(byte[] content)
+ * 	读取ctx中写入并刷新 
+ * 
+ * int SetContent(ByteBuf content, boolean isSplit)
+ * 读取content 写入bundleInfoJSON
+ * 
+ * Parse(Object obj)
+ * 将httprequest或者传入的byte转为bundleInfoJSON
+ * 
+ * GetBundleInfo(String key)
+ * 获取bundleInfoJSON的值
+ * 
+ * GetBundleId()
+ * 获取bid
+ * 
+ * ..其他对属性的get，set方法，比如 getsessionId，getCxt，setCxt等等。
+ * 
+ * @author THINK
+ *
+ */
 public class Client {
-	
-	private ChannelHandlerContext _ctx = null;
-	private JSONObject _bundleInfoJSON = null;
-	private HttpMethod _method = null;
-	private boolean _isCompleted = false;
-	private String _id = null;
-	private String _url = null;
-	private ByteBuf _contentBuf = null;
+	/**
+	 * channelRead时，当前的ctx
+	 */
+	private ChannelHandlerContext ctx = null;
+	private JSONObject bundleInfoJSON = null;
+	private HttpMethod method = null;
+	private boolean isCompleted = false;
+	private String id = null;
+	private String url = null;
+	private ByteBuf contentBuf = null;
 	
 	public boolean IsCompleted()
 	{
-		return _isCompleted;
+		return isCompleted;
 	}
 	
 	public int Response(byte[] content)
@@ -45,21 +75,12 @@ public class Client {
 		
 		//Log4j.log("-- SEND : " + content.length + " Bytes");
 		
-		ByteBuf buf = _ctx.alloc().buffer();
+		ByteBuf buf = ctx.alloc().buffer();
 		buf.writeBytes(content);
-		FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, buf);
-        response.headers().set(CONTENT_TYPE, "application/json; charset=UTF-8");
-        response.headers().set(CONTENT_LENGTH, response.content().readableBytes());
-        //response.headers().set(CONNECTION, Values.KEEP_ALIVE);
-        
-        _ctx.writeAndFlush(response);
-        
-        Log4j.log("-- SEND : " + _id);
-        
-        if(BundleConf.DEBUG)
-        {
-        	Log4j.log(new String(content));
-        }
+		FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.OK);
+        response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=UTF-8");
+        response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+        ctx.writeAndFlush(response);
         
         ret = Const.SUCCESS;
 		
@@ -70,10 +91,10 @@ public class Client {
 	{
 		int ret = Const.FAIL;
 		
-		ByteBuf buf = _ctx.alloc().buffer();
+		ByteBuf buf = ctx.alloc().buffer();
 		buf.writeBytes(content);
         
-        _ctx.writeAndFlush(buf);
+        ctx.writeAndFlush(buf);
         
         ret = Const.SUCCESS;
 		
@@ -86,38 +107,34 @@ public class Client {
 		
 		if((content != null) && (content.isReadable()))
 		{
-			if(null == _contentBuf)
+			if(null == contentBuf)
 			{
-				_contentBuf = _ctx.alloc().buffer();
+				contentBuf = ctx.alloc().buffer();
 			}
 			if(isSplit)
 			{
-				_contentBuf.writeBytes(content);
-				//Log4j.log("++ RECV SPLIT PARA : " + _contentBuf);
-				_isCompleted = false;
+				contentBuf.writeBytes(content);
+				//Log4j.log("++ RECV SPLIT PARA : " + contentBuf);
+				isCompleted = false;
 			}else {
 				
-				_contentBuf.writeBytes(content);
-				String cntBuf = _contentBuf.toString(io.netty.util.CharsetUtil.UTF_8);
-				Log4j.log("++ RECV COMPLETE PARA : [" + _id + "] " + "[" + _url + "] " + cntBuf);
-				if(_bundleInfoJSON == null)
+				contentBuf.writeBytes(content);
+				String cntBuf = contentBuf.toString(io.netty.util.CharsetUtil.UTF_8);
+				if(bundleInfoJSON == null)
 				{
-					_bundleInfoJSON = new JSONObject();
+					bundleInfoJSON = new JSONObject();
 				}
 				
-				JSONObject appObj = new JSONObject(cntBuf);
-				Iterator it = appObj.keys();
-				while(it.hasNext())
-				{
-					String key = (String)it.next();
-					_bundleInfoJSON.put(key, appObj.get(key));
+				JSONObject appObj = JSONObject.parseObject(cntBuf);
+				for (String key : appObj.keySet()) {
+					bundleInfoJSON.put(key, appObj.get(key));
 				}
-				_contentBuf = null;
-				_isCompleted = true;
+				contentBuf = null;
+				isCompleted = true;
 			}			
 		}else
 		{
-			_isCompleted = true;
+			isCompleted = true;
 		}
 		
 		ret = Const.SUCCESS;
@@ -135,45 +152,45 @@ public class Client {
 			
 			HttpRequest req = (HttpRequest)obj;
 			String url = req.getUri();
-			_url = url;
-			//Log4j.log("++ RECV CONN [" + _id + "] : " + url);
+			url = url;
+			//Log4j.log("++ RECV CONN [" + id + "] : " + url);
 			String parts[] = url.split(Const.URL_SEP);
 			if(parts.length > 3)
 			{
 				String verb = parts[1];
 				if(0 == verb.compareTo(Const.URI_TYPE_SERVICE))
 				{
-					if(_bundleInfoJSON == null)
+					if(bundleInfoJSON == null)
 					{
-						_bundleInfoJSON = new JSONObject();
+						bundleInfoJSON = new JSONObject();
 					}
 					
-					_bundleInfoJSON.put(Const.BUNDLE_INFO_BUNDLE_ID, parts[2]);
-					_bundleInfoJSON.put(Const.BUNDLE_INFO_ACTION_ID, parts[3]);
+					bundleInfoJSON.put(Const.BUNDLE_INFO_BUNDLE_ID, parts[2]);
+					bundleInfoJSON.put(Const.BUNDLE_INFO_ACTION_ID, parts[3]);
 					
 					for(int index = 4; index < parts.length; index = index + 2)
 					{
-						_bundleInfoJSON.put(parts[index], parts[index + 1]);
+						bundleInfoJSON.put(parts[index], parts[index + 1]);
 					}
 					
-					if(_id != null)
+					if(id != null)
 					{
-						_bundleInfoJSON.put(Const.BUNDLE_INFO_ID, _id);
+						bundleInfoJSON.put(Const.BUNDLE_INFO_ID, id);
 					}
 					
-					_method = req.getMethod();
+					method = req.getMethod();
 					
-					if((HttpMethod.POST.equals(_method))
-							|| (HttpMethod.PUT.equals(_method))
-							|| (HttpMethod.DELETE.equals(_method))
-							 || (HttpMethod.GET.equals(_method)))
+					if((HttpMethod.POST.equals(method))
+							|| (HttpMethod.PUT.equals(method))
+							|| (HttpMethod.DELETE.equals(method))
+							 || (HttpMethod.GET.equals(method)))
 					{
-						_isCompleted = false;
+						isCompleted = false;
 					}else {
-						_isCompleted = true;
+						isCompleted = true;
 					}
 					
-					_bundleInfoJSON.put("method", _method.toString());
+					bundleInfoJSON.put("method", method.toString());
 					
 					ret = Const.SUCCESS;
 				}else {
@@ -186,10 +203,10 @@ public class Client {
 		}else if(obj instanceof ByteBuf){
 			
 			ByteBuf bb = (ByteBuf)obj;
-			_bundleInfoJSON = Util.ByteBufToJSon(bb);
+			String msg = bb.toString(Charset.forName(Const.DEFAULT_CHARSET));
+			bundleInfoJSON = JSONObject.parseObject(msg);
 			bb.release();
-			
-			_isCompleted = true;
+			isCompleted = true;
 		}
 		
 		return ret;
@@ -198,21 +215,10 @@ public class Client {
 	private String GetBundleInfo(String key)
 	{
 		String val = null;
-		try {
-			
-			if(_bundleInfoJSON.has(key))
-			{
-				val = _bundleInfoJSON.getString(key);
-			}else {
-				
-				Log4j.error("Key " + key + " is not exist in bundleInfo.");
-			}
-			
-		} catch (Exception e) {
-			
-			Log4j.error(e);
+		if(bundleInfoJSON.containsKey(key))
+		{
+			val = bundleInfoJSON.getString(key);
 		}
-		
 		return val;
 	}
 	
@@ -223,12 +229,12 @@ public class Client {
 	
 	public String getBundleInfoString()
 	{
-		return _bundleInfoJSON.toString();
+		return bundleInfoJSON.toString();
 	}
 	
 	public JSONObject GetBundleInfoJSON()
 	{
-		return _bundleInfoJSON;
+		return bundleInfoJSON;
 	}
 	
 	public String GetSessionId()
@@ -238,18 +244,18 @@ public class Client {
 	
 	public String GetId()
 	{
-		return _id;
+		return id;
 	}
 	
 	public ChannelHandlerContext GetContext()
 	{
-		return _ctx;
+		return ctx;
 	}
 	
 	public void SetContext(ChannelHandlerContext ctx)
 	{
-		_ctx = ctx;
-		_id = ctx.toString();
+		ctx = ctx;
+		id = ctx.toString();
 	}
 	
 	public int SetObject(Object obj)
@@ -260,12 +266,10 @@ public class Client {
 	@Override
 	public void finalize()
 	{
-		if(_ctx != null)
+		if(ctx != null)
 		{
-			//Log4j.log(">>>> finalize : " + _id);
-			
-			_ctx.close();
-			_ctx = null;
+			ctx.close();
+			ctx = null;
 		}
 	}
 }
